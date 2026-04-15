@@ -669,6 +669,9 @@
         }
 
         function updateDebugOverlay() {
+            // Only update if gameState exists (during game)
+            if (typeof gameState === 'undefined') return;
+            
             // Device info
             document.getElementById('debugMode').textContent = gameMode.isMobile ? 'Mobile' : 'Desktop';
             document.getElementById('debugSetup').textContent = gameMode.setupStatus;
