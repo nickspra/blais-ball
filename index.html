@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Dodgeball Game</title>
     <style>
         * {
@@ -263,6 +263,26 @@
             cursor: crosshair;
         }
 
+        /* Debug overlay */
+        #debugOverlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #0F0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 10;
+            line-height: 1.6;
+            display: none;
+        }
+
+        #debugOverlay.active {
+            display: block;
+        }
+
         /* Game UI */
         .game-ui {
             position: absolute;
@@ -454,6 +474,16 @@
                 <div class="score-display">Score: <span id="scoreDisplay">0</span></div>
                 <div class="score-display">Score: <span id="timeDisplay">60</span></div>
             </div>
+            <div id="debugOverlay">
+                <div>Mode: <span id="debugMode">-</span></div>
+                <div>Tilt: <span id="debugTilt">OFF</span></div>
+                <div>X: <span id="debugX">0</span></div>
+                <div>Y: <span id="debugY">0</span></div>
+                <div>Events: <span id="debugCount">0</span></div>
+                <div style="margin-top: 8px; font-size: 10px; color: #888;">
+                    (Triple-tap to hide)
+                </div>
+            </div>
             <canvas id="gameCanvas"></canvas>
         </div>
 
@@ -503,7 +533,8 @@
         const gameMode = {
             isMobile: isMobile(),
             acceleration: { x: 0, y: 0 },
-            tiltEnabled: false
+            tiltEnabled: false,
+            eventCount: 0
         };
 
         // Request accelerometer permission (iOS 13+)
@@ -544,13 +575,38 @@
             // Normalize to -1 to 1 range and apply smoothing
             gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
             gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
+            gameMode.eventCount++;
             
             // Log first detection for debugging
-            if (!window.tiltDetected) {
-                window.tiltDetected = true;
+            if (gameMode.eventCount === 1) {
                 console.log('✓ Tilt event detected! Gamma:', event.gamma, 'Beta:', event.beta);
             }
+            
+            // Update debug display
+            updateDebugOverlay();
         }
+
+        function updateDebugOverlay() {
+            document.getElementById('debugMode').textContent = gameMode.isMobile ? 'Mobile' : 'Desktop';
+            document.getElementById('debugTilt').textContent = gameMode.tiltEnabled ? '✓ ON' : '✗ OFF';
+            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(2);
+            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(2);
+            document.getElementById('debugCount').textContent = gameMode.eventCount;
+        }
+
+        // Triple-tap to toggle debug overlay
+        let tapCount = 0;
+        let tapTimer = null;
+        document.addEventListener('touchstart', () => {
+            tapCount++;
+            clearTimeout(tapTimer);
+            if (tapCount === 3) {
+                const overlay = document.getElementById('debugOverlay');
+                overlay.classList.toggle('active');
+                tapCount = 0;
+            }
+            tapTimer = setTimeout(() => { tapCount = 0; }, 500);
+        });
 
         // Game State
         const gameState = {
@@ -964,12 +1020,18 @@
 
             switchScreen('gameScreen');
             document.getElementById('playerNameUI').textContent = gameState.playerName;
+            
+            // Show debug overlay on mobile
+            if (gameMode.isMobile) {
+                document.getElementById('debugOverlay').classList.add('active');
+                updateDebugOverlay();
+            }
+            
             if (gameMode.isMobile) {
                 document.getElementById('scoreDisplay').textContent = '0s';
             } else {
                 document.getElementById('scoreDisplay').textContent = gameState.score;
             }
-            
 
             // Game loop
             gameTimer = setInterval(gameLoop, 1000 / 60);
