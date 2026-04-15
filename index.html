@@ -479,11 +479,20 @@
                 <div class="score-display">Score: <span id="timeDisplay">60</span></div>
             </div>
             <div id="debugOverlay">
-                <div>Mode: <span id="debugMode">-</span></div>
-                <div>Tilt: <span id="debugTilt">OFF</span></div>
-                <div>X: <span id="debugX">0</span></div>
-                <div>Y: <span id="debugY">0</span></div>
-                <div>Events: <span id="debugCount">0</span></div>
+                <div style="margin-bottom: 10px; border-bottom: 1px solid #0F0; padding-bottom: 8px;">
+                    <div>Device: <span id="debugMode">-</span></div>
+                    <div>Setup: <span id="debugSetup">-</span></div>
+                </div>
+                <div style="margin-bottom: 10px; border-bottom: 1px solid #0F0; padding-bottom: 8px;">
+                    <div>Tilt: <span id="debugTilt">OFF</span></div>
+                    <div>Events: <span id="debugCount">0</span></div>
+                    <div>Status: <span id="debugStatus">-</span></div>
+                </div>
+                <div>
+                    <div>X: <span id="debugX">0.000</span></div>
+                    <div>Y: <span id="debugY">0.000</span></div>
+                </div>
+                <div id="debugErrors" style="margin-top: 8px; color: #FF6B6B; display: none;"></div>
                 <div style="margin-top: 8px; font-size: 10px; color: #888;">
                     (Triple-tap to hide)
                 </div>
@@ -540,67 +549,104 @@
             tiltEnabled: false,
             eventCount: 0,
             isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-            permissionRequested: false
+            permissionRequested: false,
+            setupStatus: 'Initializing...',
+            hasDeviceOrientationEvent: typeof DeviceOrientationEvent !== 'undefined',
+            hasRequestPermission: typeof DeviceOrientationEvent?.requestPermission === 'function',
+            firstEventReceived: false,
+            errors: []
         };
 
         // Setup tilt controls
         function setupTiltControls() {
             if (!gameMode.isMobile || gameMode.tiltEnabled) return;
 
+            gameMode.setupStatus = 'Setting up...';
+            updateDebugOverlay();
+
             // Check if this is iOS 13+ (requires explicit permission)
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            if (gameMode.hasRequestPermission) {
                 // iOS 13+ - request permission
-                console.log('📱 Requesting DeviceOrientation permission (iOS 13+)...');
+                gameMode.setupStatus = 'iOS 13+ detected, requesting permission...';
+                updateDebugOverlay();
+                
                 DeviceOrientationEvent.requestPermission()
                     .then(permission => {
                         if (permission === 'granted') {
                             window.addEventListener('deviceorientation', handleDeviceOrientation);
                             gameMode.tiltEnabled = true;
+                            gameMode.setupStatus = 'iOS: Permission granted ✓';
                             console.log('✓ Tilt enabled (iOS with permission)');
                         } else {
-                            console.warn('⚠ DeviceOrientation permission denied by user');
+                            gameMode.setupStatus = 'iOS: Permission denied';
+                            gameMode.errors.push('User denied permission');
                             gameMode.tiltEnabled = false;
                         }
+                        updateDebugOverlay();
                     })
                     .catch(err => {
-                        console.error('✗ Error requesting permission:', err);
+                        gameMode.setupStatus = 'iOS: Permission error';
+                        gameMode.errors.push(`Permission error: ${err.message}`);
                         gameMode.tiltEnabled = false;
+                        updateDebugOverlay();
                     });
-            } else if (typeof DeviceOrientationEvent !== 'undefined') {
+            } else if (gameMode.hasDeviceOrientationEvent) {
                 // Android, older iOS, or desktop - add listener directly (no permission needed)
-                console.log('📱 Setting up tilt (Android/non-iOS13)...');
-                window.addEventListener('deviceorientation', handleDeviceOrientation);
+                gameMode.setupStatus = 'Android/Non-iOS13 detected...';
+                updateDebugOverlay();
+                
+                // Create wrapper to detect if events are actually firing
+                let eventsFired = false;
+                const wrappedHandler = (event) => {
+                    if (!eventsFired) {
+                        eventsFired = true;
+                        gameMode.firstEventReceived = true;
+                        gameMode.setupStatus = 'Android: Events firing ✓';
+                        updateDebugOverlay();
+                    }
+                    handleDeviceOrientation(event);
+                };
+                
+                window.addEventListener('deviceorientation', wrappedHandler);
                 window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute);
-                gameMode.tiltEnabled = true;
-                console.log('✓ Tilt enabled (Android/fallback)');
+                
+                // Set flag after a short timeout to allow events to start
+                setTimeout(() => {
+                    gameMode.tiltEnabled = true;
+                    if (!eventsFired) {
+                        gameMode.setupStatus = 'Android: Setup ready (waiting for events)';
+                        gameMode.errors.push('No events received yet - try tilting device');
+                    } else {
+                        gameMode.setupStatus = 'Android: Ready ✓';
+                    }
+                    updateDebugOverlay();
+                }, 300);
             } else {
-                console.warn('⚠ DeviceOrientationEvent not available');
+                gameMode.setupStatus = 'No DeviceOrientationEvent';
+                gameMode.errors.push('Device orientation not supported');
                 gameMode.tiltEnabled = false;
+                updateDebugOverlay();
             }
         }
 
         // Setup on first user interaction for iOS, immediately for Android
         if (gameMode.isMobile) {
+            gameMode.setupStatus = 'Mobile detected';
+            console.log('📱 Mobile device detected');
+            
             // Try to setup immediately (works for Android)
             setupTiltControls();
             
             // Also setup on first user interaction (required for iOS 13 after user gesture)
             document.addEventListener('touchstart', setupTiltControls, { once: true });
             document.addEventListener('click', setupTiltControls, { once: true });
+        } else {
+            gameMode.setupStatus = 'Desktop mode';
+            console.log('🖥️ Desktop device detected');
         }
 
         function handleDeviceOrientation(event) {
             gameMode.eventCount++;
-            
-            // Log raw values (every 30th event to avoid spam)
-            if (gameMode.eventCount % 30 === 0) {
-                console.log(`📊 Event #${gameMode.eventCount}:`, { 
-                    gamma: event.gamma?.toFixed(2), 
-                    beta: event.beta?.toFixed(2), 
-                    alpha: event.alpha?.toFixed(2),
-                    isTrusted: event.isTrusted
-                });
-            }
             
             // Validate data before processing
             if (event.gamma !== null && event.gamma !== undefined && 
@@ -610,27 +656,56 @@
                 gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
                 gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
             } else {
-                console.warn('⚠ Received null orientation values');
+                if (gameMode.errors.length === 0 || gameMode.errors[gameMode.errors.length - 1] !== 'Received null orientation values') {
+                    gameMode.errors.push('Received null orientation values');
+                }
                 gameMode.acceleration.x = 0;
                 gameMode.acceleration.y = 0;
             }
         }
 
         function handleDeviceOrientationAbsolute(event) {
-            console.log('deviceorientationabsolute event:', { gamma: event.gamma, beta: event.beta, alpha: event.alpha });
             handleDeviceOrientation(event);
         }
 
         function updateDebugOverlay() {
+            // Device info
             document.getElementById('debugMode').textContent = gameMode.isMobile ? 'Mobile' : 'Desktop';
+            document.getElementById('debugSetup').textContent = gameMode.setupStatus;
+            
+            // Tilt status
             document.getElementById('debugTilt').textContent = gameMode.tiltEnabled ? '✓ ON' : '✗ OFF';
-            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(3);
-            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(3);
             document.getElementById('debugCount').textContent = gameMode.eventCount;
             
-            // If no events after game started, show warning
-            if (gameState.gameActive && gameMode.eventCount === 0) {
-                document.getElementById('debugTilt').textContent = '⚠ NO EVENTS';
+            // Acceleration values
+            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(3);
+            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(3);
+            
+            // Status during gameplay
+            let statusText = '';
+            if (gameState.gameActive) {
+                if (gameMode.tiltEnabled && gameMode.eventCount === 0) {
+                    statusText = '⚠ Listeners set but no events';
+                    if (gameMode.errors.length === 0) {
+                        gameMode.errors.push('Try tilting your device');
+                    }
+                } else if (!gameMode.tiltEnabled && gameMode.isMobile) {
+                    statusText = '❌ Tilt disabled';
+                } else if (gameMode.eventCount > 0) {
+                    statusText = '✓ Active (' + gameMode.eventCount + ' events)';
+                }
+            } else {
+                statusText = 'Ready' + (gameMode.tiltEnabled ? ' ✓' : '');
+            }
+            document.getElementById('debugStatus').textContent = statusText;
+            
+            // Show errors if any
+            const errorDiv = document.getElementById('debugErrors');
+            if (gameMode.errors.length > 0) {
+                errorDiv.style.display = 'block';
+                errorDiv.innerHTML = '❌ ' + gameMode.errors.join('<br>❌ ');
+            } else {
+                errorDiv.style.display = 'none';
             }
         }
 
@@ -833,6 +908,12 @@
             gameState.playerName = playerName;
             document.getElementById('playerNameDisplay').textContent = `${playerName}, add your friends!`;
             switchScreen('friendsScreen');
+            
+            // Show debug overlay on mobile to display setup status
+            if (gameMode.isMobile) {
+                document.getElementById('debugOverlay').classList.add('active');
+                updateDebugOverlay();
+            }
             
             // Show permission message for iOS if tilt not enabled yet
             if (gameMode.isMobile && !gameMode.tiltEnabled && 
@@ -1117,6 +1198,13 @@
             
             // Show debug overlay on mobile
             if (gameMode.isMobile) {
+                // Reset event count when game starts so we can see if events fire during gameplay
+                gameMode.eventCount = 0;
+                gameMode.errors = []; // Clear any previous errors
+                console.log('🎮 GAME STARTED - Event count reset to 0');
+                console.log('   Tilt enabled:', gameMode.tiltEnabled);
+                console.log('   Mobile:', gameMode.isMobile);
+                
                 document.getElementById('debugOverlay').classList.add('active');
                 updateDebugOverlay();
             }
