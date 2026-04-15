@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodgeball Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            max-height: 100%;
+            position: relative;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Player Name Screen */
+        #playerNameScreen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .screen-content {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 60px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .screen-content h1 {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .screen-content input {
+            font-size: 24px;
+            padding: 15px;
+            width: 100%;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .screen-content button {
+            font-size: 20px;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .screen-content button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Friends Screen */
+        #friendsScreen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .friends-content {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .friends-content h1 {
+            font-size: 36px;
+            color: #f5576c;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .friends-content p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 16px;
+        }
+
+        .friend-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .friend-input-group input {
+            flex: 1;
+            font-size: 18px;
+            padding: 12px;
+            border: 2px solid #f5576c;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .add-friend-btn {
+            font-size: 24px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .add-friend-btn:hover {
+            transform: scale(1.1);
+        }
+
+        #friendsList {
+            margin-bottom: 25px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .friend-item {
+            background: rgba(245, 87, 108, 0.1);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #f5576c;
+        }
+
+        .friend-item span {
+            font-weight: bold;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .friend-item button {
+            background: #f5576c;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .friend-item button:hover {
+            background: #d63f52;
+        }
+
+        .friends-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .friends-actions button {
+            flex: 1;
+            font-size: 18px;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .friends-actions button:hover {
+            transform: scale(1.05);
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+        }
+
+        .back-btn {
+            background: #ccc;
+            color: #333;
+        }
+
+        /* Countdown Screen */
+        #countdownScreen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #FFD89B 0%, #19547B 100%);
+        }
+
+        .countdown-display {
+            font-size: 120px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Game Canvas */
+        #gameScreen {
+            display: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+            cursor: crosshair;
+        }
+
+        /* Game UI */
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        .score-display {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .player-name-display {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+
+        /* Game Over Screen */
+        #gameOverScreen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E72 100%);
+        }
+
+        /* Math Question Screen */
+        #mathQuestionScreen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        }
+
+        .math-content {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .math-content h1 {
+            font-size: 42px;
+            color: #FF6B00;
+            margin-bottom: 30px;
+        }
+
+        .difficulty-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .difficulty-btn {
+            font-size: 16px;
+            padding: 20px 25px;
+            border: 3px solid #ccc;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            background: white;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+
+        .difficulty-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .easy-btn {
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+
+        .easy-btn:hover {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .medium-btn {
+            border-color: #FF9800;
+            color: #FF9800;
+        }
+
+        .medium-btn:hover {
+            background: #FF9800;
+            color: white;
+        }
+
+        .hard-btn {
+            border-color: #F44336;
+            color: #F44336;
+        }
+
+        .hard-btn:hover {
+            background: #F44336;
+            color: white;
+        }
+
+        .game-over-content {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 60px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .game-over-content h1 {
+            font-size: 48px;
+            color: #FF6B6B;
+            margin-bottom: 20px;
+        }
+
+        .final-score {
+            font-size: 36px;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .game-over-content button {
+            font-size: 20px;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .game-over-content button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- Screen 1: Player Name -->
+        <div id="playerNameScreen" class="screen active">
+            <div class="screen-content">
+                <h1>🎮 Dodgeball</h1>
+                <p id="modeIndicator" style="font-size: 14px; color: #999; margin-bottom: 15px;"></p>
+                <input type="text" id="playerNameInput" placeholder="Enter your name..." autocomplete="off">
+                <button onclick="goToFriendsScreen()">Next →</button>
+            </div>
+        </div>
+
+        <!-- Screen 2: Add Friends -->
+        <div id="friendsScreen" class="screen">
+            <div class="friends-content">
+                <h1>👥 Add Friends</h1>
+                <p id="playerNameDisplay"></p>
+                <div class="friend-input-group">
+                    <input type="text" id="friendNameInput" placeholder="Friend name..." autocomplete="off">
+                    <button class="add-friend-btn" onclick="addFriend()">+</button>
+                </div>
+                <div id="friendsList"></div>
+                <div class="friends-actions">
+                    <button class="back-btn" onclick="goToPlayerScreen()">← Back</button>
+                    <button class="start-btn" onclick="startCountdown()">Start Game →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Countdown -->
+        <div id="countdownScreen" class="screen">
+            <div class="countdown-display" id="countdownDisplay">3</div>
+        </div>
+
+        <!-- Screen 4: Game -->
+        <div id="gameScreen">
+            <div class="game-ui">
+                <div class="player-name-display" id="playerNameUI">Player</div>
+                <div class="score-display">Score: <span id="scoreDisplay">0</span></div>
+                <div class="score-display">Score: <span id="timeDisplay">60</span></div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <!-- Screen 5: Math Question -->
+        <div id="mathQuestionScreen" class="screen">
+            <div class="math-content">
+                <h1>📚 Math Challenge!</h1>
+                <p id="difficultyLabel">Select difficulty:</p>
+                <div id="difficultyButtons" class="difficulty-buttons" style="margin-bottom: 30px;">
+                    <button class="difficulty-btn easy-btn" onclick="selectDifficulty('easy')">
+                        Easy<br><span style="font-size: 12px;">+20 sec</span>
+                    </button>
+                    <button class="difficulty-btn medium-btn" onclick="selectDifficulty('medium')">
+                        Medium<br><span style="font-size: 12px;">+35 sec</span>
+                    </button>
+                    <button class="difficulty-btn hard-btn" onclick="selectDifficulty('hard')">
+                        Hard<br><span style="font-size: 12px;">+60 sec</span>
+                    </button>
+                </div>
+                <div id="questionArea" style="display: none;">
+                    <div id="questionText" style="font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #333;"></div>
+                    <input type="number" id="answerInput" placeholder="Your answer..." autocomplete="off" style="font-size: 24px; padding: 15px; width: 80%; max-width: 300px; margin-bottom: 20px; border: 3px solid #4CAF50; border-radius: 8px;">
+                    <div id="feedbackText" style="font-size: 18px; margin-bottom: 20px; min-height: 30px;"></div>
+                    <button onclick="submitAnswer()" style="font-size: 18px; padding: 12px 30px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Submit Answer</button>
+                    <div id="triesRemaining" style="font-size: 14px; margin-top: 15px; color: #666;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 6: Game Over -->
+        <div id="gameOverScreen" class="screen">
+            <div class="game-over-content">
+                <h1>Game Over!</h1>
+                <div class="final-score">Score: <span id="finalScore">0</span></div>
+                <button onclick="restartGame()">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Device Detection
+        const isMobile = () => {
+            return /iPhone|iPad|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+        };
+
+        const gameMode = {
+            isMobile: isMobile(),
+            acceleration: { x: 0, y: 0 }
+        };
+
+        // Request accelerometer permission (iOS 13+)
+        if (gameMode.isMobile && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            document.addEventListener('click', () => {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permission => {
+                        if (permission === 'granted') {
+                            window.addEventListener('deviceorientation', handleDeviceOrientation);
+                        }
+                    })
+                    .catch(console.error);
+            }, { once: true });
+        } else if (gameMode.isMobile && typeof DeviceOrientationEvent !== 'undefined') {
+            window.addEventListener('deviceorientation', handleDeviceOrientation);
+        }
+
+        function handleDeviceOrientation(event) {
+            gameMode.acceleration.x = event.gamma / 90;
+            gameMode.acceleration.y = event.beta / 90;
+        }
+
+        // Game State
+        const gameState = {
+            playerName: '',
+            friends: [],
+            score: 0,
+            gameActive: false,
+            gameTime: 60 // seconds
+        };
+
+        // Math Question State
+        let mathQuestionState = {
+            isActive: false,
+            difficulty: null,
+            question: null,
+            answer: null,
+            triesRemaining: 2,
+            timeReward: 0
+        };
+
+        // Math Question Generator
+        function generateMathQuestion(difficulty) {
+            const question = {};
+            if (difficulty === 'easy') {
+                const num1 = Math.floor(Math.random() * 10) + 1;
+                const num2 = Math.floor(Math.random() * 10) + 1;
+                const op = Math.random() > 0.5 ? '+' : '-';
+                question.text = `${num1} ${op} ${num2}`;
+                question.answer = op === '+' ? num1 + num2 : num1 - num2;
+                question.timeReward = 20;
+            } else if (difficulty === 'medium') {
+                const num1 = Math.floor(Math.random() * 20) + 1;
+                const num2 = Math.floor(Math.random() * 20) + 1;
+                const ops = ['+', '-', '*'];
+                const op = ops[Math.floor(Math.random() * ops.length)];
+                if (op === '+') {
+                    question.text = `${num1} + ${num2}`;
+                    question.answer = num1 + num2;
+                } else if (op === '-') {
+                    question.text = `${num1} - ${num2}`;
+                    question.answer = num1 - num2;
+                } else {
+                    question.text = `${num1} × ${num2}`;
+                    question.answer = num1 * num2;
+                }
+                question.timeReward = 35;
+            } else if (difficulty === 'hard') {
+                const num1 = Math.floor(Math.random() * 12) + 1;
+                const num2 = Math.floor(Math.random() * 12) + 1;
+                const num3 = Math.floor(Math.random() * 10) + 1;
+                const op1 = Math.random() > 0.5 ? '*' : '+';
+                const op2 = Math.random() > 0.5 ? '+' : '-';
+                if (op1 === '*') {
+                    question.text = `${num1} × ${num2} ${op2} ${num3}`;
+                    question.answer = op2 === '+' ? (num1 * num2) + num3 : (num1 * num2) - num3;
+                } else {
+                    question.text = `${num1} + ${num2} × ${num3}`;
+                    question.answer = num1 + (num2 * num3);
+                }
+                question.timeReward = 60;
+            }
+            return question;
+        }
+
+        function selectDifficulty(difficulty) {
+            mathQuestionState.difficulty = difficulty;
+            mathQuestionState.question = generateMathQuestion(difficulty);
+            mathQuestionState.triesRemaining = 2;
+
+            // Show question area
+            document.getElementById('difficultyButtons').style.display = 'none';
+            document.getElementById('difficultyLabel').style.display = 'none';
+            document.getElementById('questionArea').style.display = 'block';
+            document.getElementById('questionText').textContent = mathQuestionState.question.text + ' = ?';
+            document.getElementById('feedbackText').textContent = '';
+            document.getElementById('answerInput').value = '';
+            document.getElementById('answerInput').focus();
+            updateTriesDisplay();
+        }
+
+        function updateTriesDisplay() {
+            document.getElementById('triesRemaining').textContent = `Tries remaining: ${mathQuestionState.triesRemaining}`;
+        }
+
+        function submitAnswer() {
+            const userAnswer = parseInt(document.getElementById('answerInput').value);
+            if (isNaN(userAnswer)) {
+                document.getElementById('feedbackText').textContent = 'Please enter a number!';
+                document.getElementById('feedbackText').style.color = '#FF6B6B';
+                return;
+            }
+
+            if (userAnswer === mathQuestionState.question.answer) {
+                // Correct!
+                document.getElementById('feedbackText').textContent = '✓ Correct! Great job!';
+                document.getElementById('feedbackText').style.color = '#4CAF50';
+                document.getElementById('answerInput').disabled = true;
+                document.querySelector('button[onclick="submitAnswer()"]').disabled = true;
+                setTimeout(() => {
+                    resumeGameAfterQuestion();
+                }, 1500);
+            } else {
+                // Wrong
+                mathQuestionState.triesRemaining--;
+                if (mathQuestionState.triesRemaining > 0) {
+                    document.getElementById('feedbackText').textContent = `✗ Wrong! Try again!`;
+                    document.getElementById('feedbackText').style.color = '#F44336';
+                    document.getElementById('answerInput').value = '';
+                    updateTriesDisplay();
+                } else {
+                    // Out of tries
+                    document.getElementById('feedbackText').textContent = `✗ Out of tries! The answer was ${mathQuestionState.question.answer}.`;
+                    document.getElementById('feedbackText').style.color = '#F44336';
+                    document.getElementById('answerInput').disabled = true;
+                    document.querySelector('button[onclick="submitAnswer()"]').disabled = true;
+                    updateTriesDisplay();
+                    setTimeout(() => {
+                        endGameForReal();
+                    }, 2000);
+                }
+            }
+        }
+
+        function resumeGameAfterQuestion() {
+            timeLeft += mathQuestionState.question.timeReward;
+            gameState.gameActive = true;
+            mathQuestionState.isActive = false;
+            playerHit = false;
+            screenShakeIntensity = 0;
+            
+            // Restart game loop
+            gameTimer = setInterval(gameLoop, 1000 / 60);
+            
+            // Restart timer
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timeDisplay').textContent = timeLeft;
+                if (gameMode.isMobile) {
+                    gameState.score = gameState.gameTime - timeLeft;
+                    document.getElementById('scoreDisplay').textContent = gameState.score + 's survived';
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+            
+            switchScreen('gameScreen');
+        }
+
+        function endGameForReal() {
+            document.getElementById('finalScore').textContent = gameState.score;
+            switchScreen('gameOverScreen');
+        }
+
+        // Screen Navigation
+        function goToFriendsScreen() {
+            const playerName = document.getElementById('playerNameInput').value.trim();
+            if (!playerName) {
+                alert('Please enter your name!');
+                return;
+            }
+            gameState.playerName = playerName;
+            document.getElementById('playerNameDisplay').textContent = `${playerName}, add your friends!`;
+            switchScreen('friendsScreen');
+        }
+
+        function goToPlayerScreen() {
+            switchScreen('playerNameScreen');
+        }
+
+        function addFriend() {
+            const friendInput = document.getElementById('friendNameInput');
+            const friendName = friendInput.value.trim();
+            if (!friendName) {
+                alert('Please enter a friend name!');
+                return;
+            }
+            gameState.friends.push(friendName);
+            friendInput.value = '';
+            renderFriendsList();
+        }
+
+        function removeFriend(index) {
+            gameState.friends.splice(index, 1);
+            renderFriendsList();
+        }
+
+        function renderFriendsList() {
+            const friendsList = document.getElementById('friendsList');
+            friendsList.innerHTML = '';
+            gameState.friends.forEach((friend, index) => {
+                const item = document.createElement('div');
+                item.className = 'friend-item';
+                item.innerHTML = `
+                    <span>${friend}</span>
+                    <button onclick="removeFriend(${index})">Remove</button>
+                `;
+                friendsList.appendChild(item);
+            });
+        }
+
+        function startCountdown() {
+            if (gameState.friends.length === 0) {
+                alert('Add at least one friend to play!');
+                return;
+            }
+            switchScreen('countdownScreen');
+            let count = 3;
+            const countdownDisplay = document.getElementById('countdownDisplay');
+            countdownDisplay.textContent = count;
+            const interval = setInterval(() => {
+                count--;
+                if (count >= 0) {
+                    countdownDisplay.textContent = count;
+                } else {
+                    clearInterval(interval);
+                    startGame();
+                }
+            }, 1000);
+        }
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+
+            if (screenId === 'gameScreen') {
+                document.getElementById('gameCanvas').style.display = 'block';
+                document.getElementById('gameScreen').style.display = 'flex';
+            } else {
+                document.getElementById('gameCanvas').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'none';
+            }
+        }
+
+        // Game Logic
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Player
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 60,
+            width: 40,
+            height: 40,
+            speed: 5,
+            color: '#FFD700'
+        };
+
+        // Entities
+        let enemies = [];
+        let projectiles = [];
+        let enemyProjectiles = [];
+        let gameTimer = null;
+        let timerInterval = null;
+        let timeLeft = gameState.gameTime;
+        let screenShakeIntensity = 0;
+        let playerHit = false;
+
+        class Enemy {
+            constructor(name) {
+                this.name = name;
+                this.x = Math.random() * (canvas.width - 40);
+                this.y = Math.random() * (canvas.height / 2) + 50;
+                this.width = 40;
+                this.height = 40;
+                this.speedX = (Math.random() - 0.5) * 4;
+                this.speedY = (Math.random() - 0.5) * 4;
+                this.color = this.getRandomColor();
+                this.fireRate = 1 + Math.random() * 2;
+                this.fireTimerMax = this.fireRate * 60;
+                this.fireTimer = this.fireTimerMax;
+            }
+
+            getRandomColor() {
+                const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                // Bounce off walls
+                if (this.x < 0 || this.x + this.width > canvas.width) {
+                    this.speedX *= -1;
+                    this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
+                }
+                if (this.y < 0 || this.y + this.height > canvas.height) {
+                    this.speedY *= -1;
+                    this.y = Math.max(0, Math.min(canvas.height - this.height, this.y));
+                }
+
+                // Update fire timer
+                this.fireTimer--;
+            }
+
+            fire() {
+                if (this.fireTimer <= 0) {
+                    const projectile = new EnemyProjectile(
+                        this.x + this.width / 2,
+                        this.y + this.height / 2,
+                        player.x + player.width / 2,
+                        player.y + player.height / 2
+                    );
+                    enemyProjectiles.push(projectile);
+                    this.fireTimer = this.fireTimerMax;
+                }
+            }
+
+            draw() {
+                // Enemy square
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                // Name above enemy
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.name, this.x + this.width / 2, this.y - 10);
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                const dx = targetX - x;
+                const dy = targetY - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                this.speedX = (dx / dist) * 7;
+                this.speedY = (dy / dist) * 7;
+                this.width = 12;
+                this.height = 12;
+                this.color = '#FF0000';
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            isOffScreen() {
+                return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        class EnemyProjectile {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                const dx = targetX - x;
+                const dy = targetY - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                this.speedX = (dx / dist) * 6;
+                this.speedY = (dy / dist) * 6;
+                this.width = 12;
+                this.height = 12;
+                this.color = '#0099FF';
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            isOffScreen() {
+                return this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height;
+            }
+        }
+
+        function startGame() {
+            gameState.gameActive = true;
+            gameState.score = 0;
+            enemies = [];
+            projectiles = [];
+            enemyProjectiles = [];
+            timeLeft = gameState.gameTime;
+            screenShakeIntensity = 0;
+            playerHit = false;
+
+            // Create enemies for each friend
+            gameState.friends.forEach(friendName => {
+                enemies.push(new Enemy(friendName));
+            });
+
+            switchScreen('gameScreen');
+            document.getElementById('playerNameUI').textContent = gameState.playerName;
+            if (gameMode.isMobile) {
+                document.getElementById('scoreDisplay').textContent = '0s';
+            } else {
+                document.getElementById('scoreDisplay').textContent = gameState.score;
+            }
+            
+
+            // Game loop
+            gameTimer = setInterval(gameLoop, 1000 / 60);
+
+            // Timer
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timeDisplay').textContent = timeLeft;
+                if (gameMode.isMobile) {
+                    gameState.score = gameState.gameTime - timeLeft;
+                    document.getElementById('scoreDisplay').textContent = gameState.score + 's survived';
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function gameLoop() {
+            // Clear canvas completely
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background
+            ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Apply screen shake
+            let shakeX = 0;
+            let shakeY = 0;
+            if (screenShakeIntensity > 0) {
+                shakeX = (Math.random() - 0.5) * screenShakeIntensity;
+                shakeY = (Math.random() - 0.5) * screenShakeIntensity;
+                screenShakeIntensity *= 0.8;
+            }
+
+            ctx.save();
+            ctx.translate(shakeX, shakeY);
+
+            // Update and draw player
+            updatePlayer();
+            if (!playerHit) {
+                drawPlayer();
+            }
+
+            // Update and draw enemies
+            enemies.forEach(enemy => {
+                enemy.update();
+                enemy.fire();
+                enemy.draw();
+            });
+
+            // Update and draw player projectiles
+            projectiles = projectiles.filter(p => !p.isOffScreen());
+            projectiles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Update and draw enemy projectiles
+            enemyProjectiles = enemyProjectiles.filter(p => !p.isOffScreen());
+            enemyProjectiles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Check collisions
+            checkCollisions();
+
+            ctx.restore();
+        }
+
+        function updatePlayer() {
+            if (gameMode.isMobile) {
+                // Tablet: Accelerometer-based movement
+                player.x += gameMode.acceleration.x * player.speed * 2;
+                player.y -= gameMode.acceleration.y * player.speed * 2;
+            } else {
+                // Desktop: Keyboard-based movement
+                if (keys.left && player.x > 0) player.x -= player.speed;
+                if (keys.right && player.x + player.width < canvas.width) player.x += player.speed;
+                if (keys.up && player.y > 0) player.y -= player.speed;
+                if (keys.down && player.y + player.height < canvas.height) player.y += player.speed;
+            }
+
+            // Keep player in bounds
+            player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+        }
+
+        function drawPlayer() {
+            // Player square
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.strokeStyle = '#FFB60D';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(player.x, player.y, player.width, player.height);
+
+            // Simple face
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(player.x + 12, player.y + 12, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 28, player.y + 12, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function fireProjectile(e) {
+            if (!gameState.gameActive || gameMode.isMobile) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const projectile = new Projectile(
+                player.x + player.width / 2,
+                player.y,
+                mouseX,
+                mouseY
+            );
+            projectiles.push(projectile);
+        }
+
+        function checkCollisions() {
+            // Check player projectiles hitting enemies
+            projectiles.forEach((projectile, pIndex) => {
+                enemies.forEach((enemy, eIndex) => {
+                    if (
+                        projectile.x < enemy.x + enemy.width &&
+                        projectile.x + projectile.width > enemy.x &&
+                        projectile.y < enemy.y + enemy.height &&
+                        projectile.y + projectile.height > enemy.y
+                    ) {
+                        // Hit!
+                        gameState.score++;
+                        document.getElementById('scoreDisplay').textContent = gameState.score;
+                        projectiles.splice(pIndex, 1);
+                        
+                        // Respawn enemy
+                        enemies[eIndex] = new Enemy(enemy.name);
+                    }
+                });
+            });
+
+            // Check enemy projectiles hitting player
+            enemyProjectiles.forEach((projectile, pIndex) => {
+                if (
+                    projectile.x < player.x + player.width &&
+                    projectile.x + projectile.width > player.x &&
+                    projectile.y < player.y + player.height &&
+                    projectile.y + projectile.height > player.y
+                ) {
+                    // Player hit!
+                    playerHit = true;
+                    screenShakeIntensity = 20;
+                    gameState.gameActive = false;
+                    setTimeout(() => {
+                        endGame();
+                    }, 500);
+                    enemyProjectiles.splice(pIndex, 1);
+                }
+            });
+        }
+
+        function endGame() {
+            clearInterval(gameTimer);
+            clearInterval(timerInterval);
+            // gameState.gameTime = 0;
+            gameState.gameActive = false;
+            mathQuestionState.isActive = true;
+
+            // Reset math question screen for new attempt
+            document.getElementById('difficultyButtons').style.display = 'flex';
+            document.getElementById('difficultyLabel').style.display = 'block';
+            document.getElementById('questionArea').style.display = 'none';
+            document.getElementById('answerInput').disabled = false;
+            document.querySelector('button[onclick="submitAnswer()"]').disabled = false;
+
+            switchScreen('mathQuestionScreen');
+        }
+
+        function restartGame() {
+            switchScreen('friendsScreen');
+        }
+
+        // Input handling
+        const keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'a') keys.left = true;
+            if (e.key === 'd') keys.right = true;
+            if (e.key === 'w') keys.up = true;
+            if (e.key === 's') keys.down = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'a') keys.left = false;
+            if (e.key === 'd') keys.right = false;
+            if (e.key === 'w') keys.up = false;
+            if (e.key === 's') keys.down = false;
+        })
+        canvas.addEventListener('click', fireProjectile);
+
+        // Enter key to proceed
+        document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') goToFriendsScreen();
+        });
+
+        document.getElementById('friendNameInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addFriend();
+        });
+
+        document.getElementById('answerInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitAnswer();
+        });
+
+        // Initialize mode indicator
+        document.getElementById('modeIndicator').textContent = gameMode.isMobile ? 
+            '📱 Tablet Mode: Tilt to move, survive 60 seconds' : 
+            '🖥️ Desktop Mode: Arrow keys to move, click to attack';
+    </script>
+</body>
+</html>

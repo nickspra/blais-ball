@@ -1,0 +1,13 @@
+{
+  "name": "dodge-ball-game",
+  "version": "1.0.0",
+  "description": "A fun pixel-art dodgeball game for kids career day",
+  "main": "index.html",
+  "scripts": {
+    "dev": "serve .",
+    "build": "echo 'No build step needed'"
+  },
+  "keywords": ["game", "dodgeball", "kids", "education"],
+  "author": "",
+  "license": "MIT"
+}
