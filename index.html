@@ -909,16 +909,8 @@
             document.getElementById('playerNameDisplay').textContent = `${playerName}, add your friends!`;
             switchScreen('friendsScreen');
             
-            // Show debug overlay on mobile to display setup status
-            if (gameMode.isMobile) {
-                document.getElementById('debugOverlay').classList.add('active');
-                updateDebugOverlay();
-            }
-            
             // Show permission message for iOS if tilt not enabled yet
-            if (gameMode.isMobile && !gameMode.tiltEnabled && 
-                typeof DeviceOrientationEvent !== 'undefined' && 
-                typeof DeviceOrientationEvent.requestPermission === 'function') {
+            if (gameMode.isMobile && !gameMode.tiltEnabled && gameMode.hasRequestPermission) {
                 document.getElementById('permissionMessage').style.display = 'block';
             }
         }
