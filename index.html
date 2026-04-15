@@ -572,22 +572,23 @@
         }
 
         function handleDeviceOrientation(event) {
-            console.log('deviceorientation event:', { gamma: event.gamma, beta: event.beta, alpha: event.alpha });
+            console.log('deviceorientation event #' + gameMode.eventCount, { 
+                gamma: event.gamma, 
+                beta: event.beta, 
+                alpha: event.alpha,
+                isTrusted: event.isTrusted
+            });
             
-            // gamma: tilt left/right (left is negative)
-            // beta: tilt forward/backward (forward is positive)
-            // Normalize to -1 to 1 range and apply smoothing
-            gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
-            gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
-            gameMode.eventCount++;
-            
-            // Log first detection for debugging
-            if (gameMode.eventCount === 1) {
-                console.log('✓ Tilt event detected! Gamma:', event.gamma, 'Beta:', event.beta);
+            // Check if values are actual numbers
+            if (event.gamma !== null && event.beta !== null) {
+                gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
+                gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
+                console.log('✓ Values set:', { x: gameMode.acceleration.x, y: gameMode.acceleration.y });
+            } else {
+                console.warn('⚠ Null values received:', { gamma: event.gamma, beta: event.beta });
             }
             
-            // Update debug display
-            updateDebugOverlay();
+            gameMode.eventCount++;
         }
 
         function handleDeviceOrientationAbsolute(event) {
@@ -598,8 +599,8 @@
         function updateDebugOverlay() {
             document.getElementById('debugMode').textContent = gameMode.isMobile ? 'Mobile' : 'Desktop';
             document.getElementById('debugTilt').textContent = gameMode.tiltEnabled ? '✓ ON' : '✗ OFF';
-            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(2);
-            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(2);
+            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(3);
+            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(3);
             document.getElementById('debugCount').textContent = gameMode.eventCount;
             
             // If no events after game started, show warning
@@ -1137,6 +1138,9 @@
             checkCollisions();
 
             ctx.restore();
+            
+            // Update debug display every frame
+            updateDebugOverlay();
         }
 
         function updatePlayer() {
