@@ -561,14 +561,10 @@
         function setupTiltControls() {
             if (!gameMode.isMobile || gameMode.tiltEnabled) return;
 
-            gameMode.setupStatus = 'Setting up...';
-            updateDebugOverlay();
-
             // Check if this is iOS 13+ (requires explicit permission)
             if (gameMode.hasRequestPermission) {
                 // iOS 13+ - request permission
                 gameMode.setupStatus = 'iOS 13+ detected, requesting permission...';
-                updateDebugOverlay();
                 
                 DeviceOrientationEvent.requestPermission()
                     .then(permission => {
@@ -582,18 +578,15 @@
                             gameMode.errors.push('User denied permission');
                             gameMode.tiltEnabled = false;
                         }
-                        updateDebugOverlay();
                     })
                     .catch(err => {
                         gameMode.setupStatus = 'iOS: Permission error';
                         gameMode.errors.push(`Permission error: ${err.message}`);
                         gameMode.tiltEnabled = false;
-                        updateDebugOverlay();
                     });
             } else if (gameMode.hasDeviceOrientationEvent) {
                 // Android, older iOS, or desktop - add listener directly (no permission needed)
                 gameMode.setupStatus = 'Android/Non-iOS13 detected...';
-                updateDebugOverlay();
                 
                 // Create wrapper to detect if events are actually firing
                 let eventsFired = false;
@@ -602,7 +595,6 @@
                         eventsFired = true;
                         gameMode.firstEventReceived = true;
                         gameMode.setupStatus = 'Android: Events firing ✓';
-                        updateDebugOverlay();
                     }
                     handleDeviceOrientation(event);
                 };
@@ -619,13 +611,11 @@
                     } else {
                         gameMode.setupStatus = 'Android: Ready ✓';
                     }
-                    updateDebugOverlay();
                 }, 300);
             } else {
                 gameMode.setupStatus = 'No DeviceOrientationEvent';
                 gameMode.errors.push('Device orientation not supported');
                 gameMode.tiltEnabled = false;
-                updateDebugOverlay();
             }
         }
 
