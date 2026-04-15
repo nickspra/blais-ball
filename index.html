@@ -554,12 +554,23 @@
             hasDeviceOrientationEvent: typeof DeviceOrientationEvent !== 'undefined',
             hasRequestPermission: typeof DeviceOrientationEvent?.requestPermission === 'function',
             firstEventReceived: false,
-            errors: []
+            errors: [],
+            isSecureContext: window.isSecureContext || false,
+            isBrave: /brave/i.test(navigator.userAgent),
+            lastValidValues: { gamma: null, beta: null }
         };
 
         // Setup tilt controls
         function setupTiltControls() {
             if (!gameMode.isMobile || gameMode.tiltEnabled) return;
+
+            // Check if on secure context (HTTPS)
+            if (!gameMode.isSecureContext) {
+                gameMode.setupStatus = 'HTTP Detected ⚠';
+                gameMode.errors.push('Sensors require HTTPS. Use HTTP only for desktop testing.');
+                gameMode.tiltEnabled = false;
+                return;
+            }
 
             // Check if this is iOS 13+ (requires explicit permission)
             if (gameMode.hasRequestPermission) {
@@ -572,7 +583,6 @@
                             window.addEventListener('deviceorientation', handleDeviceOrientation);
                             gameMode.tiltEnabled = true;
                             gameMode.setupStatus = 'iOS: Permission granted ✓';
-                            console.log('✓ Tilt enabled (iOS with permission)');
                         } else {
                             gameMode.setupStatus = 'iOS: Permission denied';
                             gameMode.errors.push('User denied permission');
@@ -586,7 +596,8 @@
                     });
             } else if (gameMode.hasDeviceOrientationEvent) {
                 // Android, older iOS, or desktop - add listener directly (no permission needed)
-                gameMode.setupStatus = 'Android/Non-iOS13 detected...';
+                const deviceType = gameMode.isBrave ? 'Brave/Android' : 'Android/Non-iOS13';
+                gameMode.setupStatus = `${deviceType} detected...`;
                 
                 // Create wrapper to detect if events are actually firing
                 let eventsFired = false;
@@ -594,8 +605,7 @@
                     if (!eventsFired) {
                         eventsFired = true;
                         gameMode.firstEventReceived = true;
-                        gameMode.setupStatus = 'Android: Events firing ✓';
-                        console.log('✓ Device orientation events detected!');
+                        gameMode.setupStatus = `${deviceType}: Events firing ✓`;
                     }
                     handleDeviceOrientation(event);
                 };
@@ -607,8 +617,7 @@
                     if (!eventsFired) {
                         eventsFired = true;
                         gameMode.firstEventReceived = true;
-                        gameMode.setupStatus = 'Android: Events firing (absolute) ✓';
-                        console.log('✓ Device orientation absolute events detected!');
+                        gameMode.setupStatus = `${deviceType}: Events firing (absolute) ✓`;
                     }
                     handleDeviceOrientation(event);
                 };
@@ -618,11 +627,15 @@
                 setTimeout(() => {
                     gameMode.tiltEnabled = true;
                     if (!eventsFired) {
-                        gameMode.setupStatus = 'Android: Setup ready (waiting for events...)';
-                        gameMode.errors.push('No orientation events received yet - ensure location services are enabled');
-                        console.warn('⚠ No device orientation events detected after 300ms');
+                        gameMode.setupStatus = `${deviceType}: Setup ready (waiting for events...)`;
+                        const tips = [
+                            'Ensure location services are ON (Settings > Location)',
+                            gameMode.isBrave ? 'Grant site permission in Brave (⋮ > Settings > Site settings)' : 'Grant site location permission',
+                            'Make sure you\'re on HTTPS (not HTTP)'
+                        ];
+                        gameMode.errors.push('No orientation events yet - ' + tips.join(' | '));
                     } else {
-                        gameMode.setupStatus = 'Android: Ready ✓';
+                        gameMode.setupStatus = `${deviceType}: Ready ✓`;
                     }
                 }, 300);
             } else {
@@ -635,7 +648,6 @@
         // Setup on first user interaction for iOS, immediately for Android
         if (gameMode.isMobile) {
             gameMode.setupStatus = 'Mobile detected';
-            console.log('📱 Mobile device detected');
             
             // Try to setup immediately (works for Android)
             setupTiltControls();
@@ -645,7 +657,6 @@
             document.addEventListener('click', setupTiltControls, { once: true });
         } else {
             gameMode.setupStatus = 'Desktop mode';
-            console.log('🖥️ Desktop device detected');
         }
 
         function handleDeviceOrientation(event) {
@@ -658,9 +669,25 @@
                 // Scale to -1 to 1 range for smooth movement
                 gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
                 gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
+                
+                // Store valid values for potential fallback
+                gameMode.lastValidValues.gamma = event.gamma;
+                gameMode.lastValidValues.beta = event.beta;
+                
+                // Clear null value error if we're now receiving data
+                gameMode.errors = gameMode.errors.filter(e => !e.includes('null values'));
             } else {
-                if (gameMode.errors.length === 0 || gameMode.errors[gameMode.errors.length - 1] !== 'Received null orientation values') {
-                    gameMode.errors.push('Received null orientation values');
+                // Events firing but null values - strong Brave Android indicator
+                const nullProps = [];
+                if (event.gamma === null) nullProps.push('gamma');
+                if (event.beta === null) nullProps.push('beta');
+                
+                const errorMsg = gameMode.isBrave 
+                    ? `Brave: Events firing but null ${nullProps.join('+')} - Check Brave site permissions (⋮ Settings)`
+                    : `Events firing but null ${nullProps.join('+')} - Check browser permissions`;
+                
+                if (gameMode.errors.length === 0 || !gameMode.errors.some(e => e.includes('null'))) {
+                    gameMode.errors.push(errorMsg);
                 }
                 gameMode.acceleration.x = 0;
                 gameMode.acceleration.y = 0;
@@ -690,15 +717,20 @@
             // Status during gameplay
             let statusText = '';
             if (gameState.gameActive) {
-                if (gameMode.tiltEnabled && gameMode.eventCount === 0) {
+                if (gameMode.eventCount > 0) {
+                    // Events firing - check if we have valid data
+                    if (gameMode.acceleration.x === 0 && gameMode.acceleration.y === 0) {
+                        statusText = '⚠ Events firing but no data';
+                    } else {
+                        statusText = '✓ Active (' + gameMode.eventCount + ' events)';
+                    }
+                } else if (gameMode.tiltEnabled && gameMode.eventCount === 0) {
                     statusText = '⚠ Listeners set but no events';
                     if (gameMode.errors.length === 0) {
-                        gameMode.errors.push('Try tilting your device');
+                        gameMode.errors.push('No orientation events received yet - enable location services or check sensor');
                     }
                 } else if (!gameMode.tiltEnabled && gameMode.isMobile) {
                     statusText = '❌ Tilt disabled';
-                } else if (gameMode.eventCount > 0) {
-                    statusText = '✓ Active (' + gameMode.eventCount + ' events)';
                 }
             } else {
                 statusText = 'Ready' + (gameMode.tiltEnabled ? ' ✓' : '');
@@ -734,16 +766,12 @@
             try {
                 if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                     const permission = await DeviceOrientationEvent.requestPermission();
-                    console.log('Permission result:', permission);
                     if (permission === 'granted') {
                         gameMode.tiltEnabled = true;
-                        console.log('✓ Permission granted!');
                     }
-                } else {
-                    console.log('requestPermission not available on this device');
                 }
             } catch (err) {
-                console.error('Error requesting permission:', err);
+                // Error requesting permission
             }
         }
         
@@ -924,7 +952,6 @@
         async function requestPermissionManually() {
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
-                    console.log('🔐 Requesting DeviceOrientation permission manually...');
                     const permission = await DeviceOrientationEvent.requestPermission();
                     if (permission === 'granted') {
                         window.addEventListener('deviceorientation', handleDeviceOrientation);
@@ -934,16 +961,12 @@
                         document.getElementById('permissionMessage').style.background = '#D4EDDA';
                         document.getElementById('permissionMessage').style.borderColor = '#4CAF50';
                         document.getElementById('permissionMessage').style.color = '#155724';
-                        console.log('✓ Permission granted!');
                     } else {
-                        console.warn('⚠ Permission denied');
                         document.getElementById('permissionMessage').classList.remove('active');
                     }
                 } catch (err) {
-                    console.error('✗ Error requesting permission:', err);
+                    // Error requesting permission
                 }
-            } else {
-                console.log('Permission request not available on this device');
             }
         }
 
@@ -1086,16 +1109,16 @@
             }
 
             fire() {
-                // if (this.fireTimer <= 0) {
-                //     const projectile = new EnemyProjectile(
-                //         this.x + this.width / 2,
-                //         this.y + this.height / 2,
-                //         player.x + player.width / 2,
-                //         player.y + player.height / 2
-                //     );
-                //     enemyProjectiles.push(projectile);
-                //     this.fireTimer = this.fireTimerMax;
-                // }
+                if (this.fireTimer <= 0) {
+                    const projectile = new EnemyProjectile(
+                        this.x + this.width / 2,
+                        this.y + this.height / 2,
+                        player.x + player.width / 2,
+                        player.y + player.height / 2
+                    );
+                    enemyProjectiles.push(projectile);
+                    this.fireTimer = this.fireTimerMax;
+                }
             }
 
             draw() {
@@ -1199,9 +1222,6 @@
                 // Reset event count when game starts so we can see if events fire during gameplay
                 gameMode.eventCount = 0;
                 gameMode.errors = []; // Clear any previous errors
-                console.log('🎮 GAME STARTED - Event count reset to 0');
-                console.log('   Tilt enabled:', gameMode.tiltEnabled);
-                console.log('   Mobile:', gameMode.isMobile);
                 
                 document.getElementById('debugOverlay').classList.add('active');
                 updateDebugOverlay();
