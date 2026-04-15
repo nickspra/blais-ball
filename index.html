@@ -450,6 +450,10 @@
             <div class="friends-content">
                 <h1>👥 Add Friends</h1>
                 <p id="playerNameDisplay"></p>
+                <div id="permissionMessage" style="display: none; background: #FFF3CD; border: 2px solid #FF9800; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; color: #333;">
+                    📱 <strong>iOS users:</strong> Please allow "Motion & Orientation" access for tilt controls
+                    <button onclick="requestPermissionManually()" style="margin-left: 10px; padding: 5px 15px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">Enable Tilt</button>
+                </div>
                 <div class="friend-input-group">
                     <input type="text" id="friendNameInput" placeholder="Friend name..." autocomplete="off">
                     <button class="add-friend-btn" onclick="addFriend()">+</button>
@@ -534,61 +538,82 @@
             isMobile: isMobile(),
             acceleration: { x: 0, y: 0 },
             tiltEnabled: false,
-            eventCount: 0
+            eventCount: 0,
+            isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+            permissionRequested: false
         };
 
-        // Request accelerometer permission (iOS 13+)
-        function requestTiltPermission() {
+        // Setup tilt controls
+        function setupTiltControls() {
+            if (!gameMode.isMobile || gameMode.tiltEnabled) return;
+
+            // Check if this is iOS 13+ (requires explicit permission)
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                // iOS 13+
+                // iOS 13+ - request permission
+                console.log('📱 Requesting DeviceOrientation permission (iOS 13+)...');
                 DeviceOrientationEvent.requestPermission()
                     .then(permission => {
                         if (permission === 'granted') {
                             window.addEventListener('deviceorientation', handleDeviceOrientation);
                             gameMode.tiltEnabled = true;
-                            console.log('✓ Tilt controls enabled (iOS)');
+                            console.log('✓ Tilt enabled (iOS with permission)');
+                        } else {
+                            console.warn('⚠ DeviceOrientation permission denied by user');
+                            gameMode.tiltEnabled = false;
                         }
                     })
                     .catch(err => {
-                        console.error('✗ Tilt permission denied:', err);
+                        console.error('✗ Error requesting permission:', err);
                         gameMode.tiltEnabled = false;
                     });
+            } else if (typeof DeviceOrientationEvent !== 'undefined') {
+                // Android, older iOS, or desktop - add listener directly (no permission needed)
+                console.log('📱 Setting up tilt (Android/non-iOS13)...');
+                window.addEventListener('deviceorientation', handleDeviceOrientation);
+                window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute);
+                gameMode.tiltEnabled = true;
+                console.log('✓ Tilt enabled (Android/fallback)');
+            } else {
+                console.warn('⚠ DeviceOrientationEvent not available');
+                gameMode.tiltEnabled = false;
             }
         }
 
-        // Android: Set up listener immediately (no permission needed)
-        if (gameMode.isMobile && typeof DeviceOrientationEvent !== 'undefined') {
-            window.addEventListener('deviceorientation', handleDeviceOrientation);
-            // Fallback for some Android devices
-            window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute);
-            gameMode.tiltEnabled = true;
-            console.log('✓ Tilt controls enabled (Android/other) - listening to deviceorientation + deviceorientationabsolute');
-        }
-
-        // iOS: Request permission on first user interaction
+        // Setup on first user interaction for iOS, immediately for Android
         if (gameMode.isMobile) {
-            document.addEventListener('touchstart', requestTiltPermission, { once: true });
-            document.addEventListener('click', requestTiltPermission, { once: true });
+            // Try to setup immediately (works for Android)
+            setupTiltControls();
+            
+            // Also setup on first user interaction (required for iOS 13 after user gesture)
+            document.addEventListener('touchstart', setupTiltControls, { once: true });
+            document.addEventListener('click', setupTiltControls, { once: true });
         }
 
         function handleDeviceOrientation(event) {
-            console.log('deviceorientation event #' + gameMode.eventCount, { 
-                gamma: event.gamma, 
-                beta: event.beta, 
-                alpha: event.alpha,
-                isTrusted: event.isTrusted
-            });
+            gameMode.eventCount++;
             
-            // Check if values are actual numbers
-            if (event.gamma !== null && event.beta !== null) {
-                gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
-                gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
-                console.log('✓ Values set:', { x: gameMode.acceleration.x, y: gameMode.acceleration.y });
-            } else {
-                console.warn('⚠ Null values received:', { gamma: event.gamma, beta: event.beta });
+            // Log raw values (every 30th event to avoid spam)
+            if (gameMode.eventCount % 30 === 0) {
+                console.log(`📊 Event #${gameMode.eventCount}:`, { 
+                    gamma: event.gamma?.toFixed(2), 
+                    beta: event.beta?.toFixed(2), 
+                    alpha: event.alpha?.toFixed(2),
+                    isTrusted: event.isTrusted
+                });
             }
             
-            gameMode.eventCount++;
+            // Validate data before processing
+            if (event.gamma !== null && event.gamma !== undefined && 
+                event.beta !== null && event.beta !== undefined) {
+                // Normalize values: gamma (-90 to 90) and beta (-180 to 180)
+                // Scale to -1 to 1 range for smooth movement
+                gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
+                gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
+            } else {
+                console.warn('⚠ Received null orientation values');
+                gameMode.acceleration.x = 0;
+                gameMode.acceleration.y = 0;
+            }
         }
 
         function handleDeviceOrientationAbsolute(event) {
@@ -808,6 +833,39 @@
             gameState.playerName = playerName;
             document.getElementById('playerNameDisplay').textContent = `${playerName}, add your friends!`;
             switchScreen('friendsScreen');
+            
+            // Show permission message for iOS if tilt not enabled yet
+            if (gameMode.isMobile && !gameMode.tiltEnabled && 
+                typeof DeviceOrientationEvent !== 'undefined' && 
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                document.getElementById('permissionMessage').style.display = 'block';
+            }
+        }
+        
+        async function requestPermissionManually() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    console.log('🔐 Requesting DeviceOrientation permission manually...');
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', handleDeviceOrientation);
+                        gameMode.tiltEnabled = true;
+                        document.getElementById('permissionMessage').innerHTML = 
+                            '✅ <strong>Tilt enabled!</strong> You can now move by tilting your device.';
+                        document.getElementById('permissionMessage').style.background = '#D4EDDA';
+                        document.getElementById('permissionMessage').style.borderColor = '#4CAF50';
+                        document.getElementById('permissionMessage').style.color = '#155724';
+                        console.log('✓ Permission granted!');
+                    } else {
+                        console.warn('⚠ Permission denied');
+                        document.getElementById('permissionMessage').classList.remove('active');
+                    }
+                } catch (err) {
+                    console.error('✗ Error requesting permission:', err);
+                }
+            } else {
+                console.log('Permission request not available on this device');
+            }
         }
 
         function goToPlayerScreen() {
@@ -1145,16 +1203,25 @@
 
         function updatePlayer() {
             if (gameMode.isMobile && gameMode.tiltEnabled) {
-                // Tablet: Accelerometer-based movement (primary)
-                player.x += gameMode.acceleration.x * player.speed * 2;
-                player.y -= gameMode.acceleration.y * player.speed * 2;
-            } else {
-                // Desktop or fallback: Keyboard-based movement
-                if (keys.left && player.x > 0) player.x -= player.speed;
-                if (keys.right && player.x + player.width < canvas.width) player.x += player.speed;
-                if (keys.up && player.y > 0) player.y -= player.speed;
-                if (keys.down && player.y + player.height < canvas.height) player.y += player.speed;
+                // Tilt-based movement with dead zone (preferred for mobile)
+                const deadZone = 0.1; // Ignore small tilts
+                let tiltX = gameMode.acceleration.x;
+                let tiltY = gameMode.acceleration.y;
+                
+                // Apply dead zone
+                if (Math.abs(tiltX) < deadZone) tiltX = 0;
+                if (Math.abs(tiltY) < deadZone) tiltY = 0;
+                
+                // Apply movement with acceleration
+                player.x += tiltX * player.speed * 3;
+                player.y -= tiltY * player.speed * 3;
             }
+            
+            // Also support keyboard controls as fallback on all devices
+            if (keys.left && player.x > 0) player.x -= player.speed;
+            if (keys.right && player.x + player.width < canvas.width) player.x += player.speed;
+            if (keys.up && player.y > 0) player.y -= player.speed;
+            if (keys.down && player.y + player.height < canvas.height) player.y += player.speed;
 
             // Keep player in bounds
             player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
@@ -1180,10 +1247,25 @@
         }
 
         function fireProjectile(e) {
-            if (!gameState.gameActive || gameMode.isMobile) return;
+            if (!gameState.gameActive) return;
+            
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            let mouseX, mouseY;
+            
+            // Handle both mouse and touch events
+            if (e.touches) {
+                // Touch event
+                mouseX = e.touches[0].clientX - rect.left;
+                mouseY = e.touches[0].clientY - rect.top;
+            } else if (gameMode.isMobile) {
+                // On mobile, skip desktop-style clicks
+                return;
+            } else {
+                // Mouse event
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+            }
+            
             const projectile = new Projectile(
                 player.x + player.width / 2,
                 player.y,
@@ -1291,6 +1373,7 @@
             if (e.key === 'ArrowDown') keys.down = false;
         })
         canvas.addEventListener('click', fireProjectile);
+        canvas.addEventListener('touchstart', fireProjectile);
 
         // Enter key to proceed
         document.getElementById('playerNameInput').addEventListener('keypress', (e) => {
@@ -1307,7 +1390,7 @@
 
         // Initialize mode indicator
         document.getElementById('modeIndicator').textContent = gameMode.isMobile ? 
-            '📱 Tablet Mode: Tilt device to move (or use arrow keys). Survive 60 seconds.' : 
+            '📱 Mobile Mode: Tilt device to move (or use arrow keys as fallback)' : 
             '🖥️ Desktop Mode: Arrow keys or WASD to move, click to attack';
     </script>
 </body>
