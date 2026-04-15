@@ -595,19 +595,32 @@
                         eventsFired = true;
                         gameMode.firstEventReceived = true;
                         gameMode.setupStatus = 'Android: Events firing ✓';
+                        console.log('✓ Device orientation events detected!');
                     }
                     handleDeviceOrientation(event);
                 };
                 
                 window.addEventListener('deviceorientation', wrappedHandler);
-                window.addEventListener('deviceorientationabsolute', handleDeviceOrientationAbsolute);
+                
+                // Also try deviceorientationabsolute (some Android devices only fire this)
+                const wrappedHandlerAbsolute = (event) => {
+                    if (!eventsFired) {
+                        eventsFired = true;
+                        gameMode.firstEventReceived = true;
+                        gameMode.setupStatus = 'Android: Events firing (absolute) ✓';
+                        console.log('✓ Device orientation absolute events detected!');
+                    }
+                    handleDeviceOrientation(event);
+                };
+                window.addEventListener('deviceorientationabsolute', wrappedHandlerAbsolute);
                 
                 // Set flag after a short timeout to allow events to start
                 setTimeout(() => {
                     gameMode.tiltEnabled = true;
                     if (!eventsFired) {
-                        gameMode.setupStatus = 'Android: Setup ready (waiting for events)';
-                        gameMode.errors.push('No events received yet - try tilting device');
+                        gameMode.setupStatus = 'Android: Setup ready (waiting for events...)';
+                        gameMode.errors.push('No orientation events received yet - ensure location services are enabled');
+                        console.warn('⚠ No device orientation events detected after 300ms');
                     } else {
                         gameMode.setupStatus = 'Android: Ready ✓';
                     }
