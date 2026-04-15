@@ -263,25 +263,7 @@
             cursor: crosshair;
         }
 
-        /* Debug overlay */
-        #debugOverlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #0F0;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 10;
-            line-height: 1.6;
-            display: none;
-        }
-
-        #debugOverlay.active {
-            display: block;
-        }
+        
 
         /* Game UI */
         .game-ui {
@@ -478,25 +460,7 @@
                 <div class="score-display">Score: <span id="scoreDisplay">0</span></div>
                 <div class="score-display">Score: <span id="timeDisplay">60</span></div>
             </div>
-            <div id="debugOverlay">
-                <div style="margin-bottom: 10px; border-bottom: 1px solid #0F0; padding-bottom: 8px;">
-                    <div>Device: <span id="debugMode">-</span></div>
-                    <div>Setup: <span id="debugSetup">-</span></div>
-                </div>
-                <div style="margin-bottom: 10px; border-bottom: 1px solid #0F0; padding-bottom: 8px;">
-                    <div>Tilt: <span id="debugTilt">OFF</span></div>
-                    <div>Events: <span id="debugCount">0</span></div>
-                    <div>Status: <span id="debugStatus">-</span></div>
-                </div>
-                <div>
-                    <div>X: <span id="debugX">0.000</span></div>
-                    <div>Y: <span id="debugY">0.000</span></div>
-                </div>
-                <div id="debugErrors" style="margin-top: 8px; color: #FF6B6B; display: none;"></div>
-                <div style="margin-top: 8px; font-size: 10px; color: #888;">
-                    (Triple-tap to hide)
-                </div>
-            </div>
+            
             <canvas id="gameCanvas"></canvas>
         </div>
 
@@ -668,7 +632,7 @@
                 // Normalize values: gamma (-90 to 90) and beta (-180 to 180)
                 // Scale to -1 to 1 range for smooth movement
                 gameMode.acceleration.x = Math.max(-1, Math.min(1, event.gamma / 45));
-                gameMode.acceleration.y = Math.max(-1, Math.min(1, event.beta / 45));
+                gameMode.acceleration.y = Math.max(-1, Math.min(1, -(event.beta / 45)));
                 
                 // Store valid values for potential fallback
                 gameMode.lastValidValues.gamma = event.gamma;
@@ -698,68 +662,6 @@
             handleDeviceOrientation(event);
         }
 
-        function updateDebugOverlay() {
-            // Only update if gameState exists (during game)
-            if (typeof gameState === 'undefined') return;
-            
-            // Device info
-            document.getElementById('debugMode').textContent = gameMode.isMobile ? 'Mobile' : 'Desktop';
-            document.getElementById('debugSetup').textContent = gameMode.setupStatus;
-            
-            // Tilt status
-            document.getElementById('debugTilt').textContent = gameMode.tiltEnabled ? '✓ ON' : '✗ OFF';
-            document.getElementById('debugCount').textContent = gameMode.eventCount;
-            
-            // Acceleration values
-            document.getElementById('debugX').textContent = gameMode.acceleration.x.toFixed(3);
-            document.getElementById('debugY').textContent = gameMode.acceleration.y.toFixed(3);
-            
-            // Status during gameplay
-            let statusText = '';
-            if (gameState.gameActive) {
-                if (gameMode.eventCount > 0) {
-                    // Events firing - check if we have valid data
-                    if (gameMode.acceleration.x === 0 && gameMode.acceleration.y === 0) {
-                        statusText = '⚠ Events firing but no data';
-                    } else {
-                        statusText = '✓ Active (' + gameMode.eventCount + ' events)';
-                    }
-                } else if (gameMode.tiltEnabled && gameMode.eventCount === 0) {
-                    statusText = '⚠ Listeners set but no events';
-                    if (gameMode.errors.length === 0) {
-                        gameMode.errors.push('No orientation events received yet - enable location services or check sensor');
-                    }
-                } else if (!gameMode.tiltEnabled && gameMode.isMobile) {
-                    statusText = '❌ Tilt disabled';
-                }
-            } else {
-                statusText = 'Ready' + (gameMode.tiltEnabled ? ' ✓' : '');
-            }
-            document.getElementById('debugStatus').textContent = statusText;
-            
-            // Show errors if any
-            const errorDiv = document.getElementById('debugErrors');
-            if (gameMode.errors.length > 0) {
-                errorDiv.style.display = 'block';
-                errorDiv.innerHTML = '❌ ' + gameMode.errors.join('<br>❌ ');
-            } else {
-                errorDiv.style.display = 'none';
-            }
-        }
-
-        // Triple-tap to toggle debug overlay
-        let tapCount = 0;
-        let tapTimer = null;
-        document.addEventListener('touchstart', () => {
-            tapCount++;
-            clearTimeout(tapTimer);
-            if (tapCount === 3) {
-                const overlay = document.getElementById('debugOverlay');
-                overlay.classList.toggle('active');
-                tapCount = 0;
-            }
-            tapTimer = setTimeout(() => { tapCount = 0; }, 500);
-        });
 
         // For testing: request permissions manually on Android 12+
         async function requestSensorPermission() {
@@ -774,9 +676,6 @@
                 // Error requesting permission
             }
         }
-        
-        // Expose for manual testing
-        window.testTilt = requestSensorPermission;
 
         // Game State
         const gameState = {
@@ -1217,15 +1116,7 @@
             switchScreen('gameScreen');
             document.getElementById('playerNameUI').textContent = gameState.playerName;
             
-            // Show debug overlay on mobile
-            if (gameMode.isMobile) {
-                // Reset event count when game starts so we can see if events fire during gameplay
-                gameMode.eventCount = 0;
-                gameMode.errors = []; // Clear any previous errors
-                
-                document.getElementById('debugOverlay').classList.add('active');
-                // updateDebugOverlay();
-            }
+           
             
             if (gameMode.isMobile) {
                 document.getElementById('scoreDisplay').textContent = '0s';
@@ -1304,7 +1195,7 @@
             ctx.restore();
             
             // Update debug display every frame
-            // updateDebugOverlay();
+            
         }
 
         function updatePlayer() {
