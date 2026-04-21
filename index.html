@@ -290,6 +290,33 @@
             border-radius: 8px;
         }
 
+        /* Reload Button */
+        #reloadBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: background 0.3s;
+        }
+
+        #reloadBtn.hold-active {
+            background: rgba(255, 100, 100, 0.8);
+            transform: scale(1.15);
+        }
+
         /* Game Over Screen */
         #gameOverScreen {
             flex-direction: column;
@@ -460,7 +487,7 @@
                 <div class="score-display">Score: <span id="scoreDisplay">0</span></div>
                 <div class="score-display">Score: <span id="timeDisplay">60</span></div>
             </div>
-            
+            <button id="reloadBtn" title="Hold to reload">↺</button>
             <canvas id="gameCanvas"></canvas>
         </div>
 
@@ -937,9 +964,11 @@
             if (screenId === 'gameScreen') {
                 document.getElementById('gameCanvas').style.display = 'block';
                 document.getElementById('gameScreen').style.display = 'flex';
+                document.getElementById('reloadBtn').style.display = 'flex';
             } else {
                 document.getElementById('gameCanvas').style.display = 'none';
                 document.getElementById('gameScreen').style.display = 'none';
+                document.getElementById('reloadBtn').style.display = 'none';
             }
         }
 
@@ -1476,6 +1505,29 @@
         document.getElementById('answerInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') submitAnswer();
         });
+
+        // Reload button: hold for 1 second to reload
+        const reloadBtn = document.getElementById('reloadBtn');
+        let reloadHoldTimer = null;
+
+        function startReloadHold() {
+            reloadBtn.classList.add('hold-active');
+            reloadHoldTimer = setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
+        function cancelReloadHold() {
+            clearTimeout(reloadHoldTimer);
+            reloadBtn.classList.remove('hold-active');
+        }
+
+        reloadBtn.addEventListener('mousedown', startReloadHold);
+        reloadBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReloadHold(); }, { passive: false });
+        reloadBtn.addEventListener('mouseup', cancelReloadHold);
+        reloadBtn.addEventListener('mouseleave', cancelReloadHold);
+        reloadBtn.addEventListener('touchend', cancelReloadHold);
+        reloadBtn.addEventListener('touchcancel', cancelReloadHold);
 
         // Initialize mode indicator
         document.getElementById('modeIndicator').textContent = gameMode.isMobile ? 
