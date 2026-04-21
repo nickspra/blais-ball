@@ -703,8 +703,10 @@
                 const num1 = Math.floor(Math.random() * 10) + 1;
                 const num2 = Math.floor(Math.random() * 10) + 1;
                 const op = Math.random() > 0.5 ? '+' : '-';
-                question.text = `${num1} ${op} ${num2}`;
-                question.answer = op === '+' ? num1 + num2 : num1 - num2;
+                const easyA = op === '-' ? Math.max(num1, num2) : num1;
+                const easyB = op === '-' ? Math.min(num1, num2) : num2;
+                question.text = `${easyA} ${op} ${easyB}`;
+                question.answer = op === '+' ? easyA + easyB : easyA - easyB;
                 question.timeReward = 20;
             } else if (difficulty === 'medium') {
                 const num1 = Math.floor(Math.random() * 20) + 1;
@@ -715,8 +717,10 @@
                     question.text = `${num1} + ${num2}`;
                     question.answer = num1 + num2;
                 } else if (op === '-') {
-                    question.text = `${num1} - ${num2}`;
-                    question.answer = num1 - num2;
+                    const medA = Math.max(num1, num2);
+                    const medB = Math.min(num1, num2);
+                    question.text = `${medA} - ${medB}`;
+                    question.answer = medA - medB;
                 } else {
                     question.text = `${num1} × ${num2}`;
                     question.answer = num1 * num2;
@@ -729,8 +733,10 @@
                 const op1 = Math.random() > 0.5 ? '*' : '+';
                 const op2 = Math.random() > 0.5 ? '+' : '-';
                 if (op1 === '*') {
-                    question.text = `${num1} × ${num2} ${op2} ${num3}`;
-                    question.answer = op2 === '+' ? (num1 * num2) + num3 : (num1 * num2) - num3;
+                    const product = num1 * num2;
+                    const safeNum3 = op2 === '-' ? Math.min(num3, product) : num3;
+                    question.text = `${num1} × ${num2} ${op2} ${safeNum3}`;
+                    question.answer = op2 === '+' ? product + safeNum3 : product - safeNum3;
                 } else {
                     question.text = `${num1} + ${num2} × ${num3}`;
                     question.answer = num1 + (num2 * num3);
@@ -949,6 +955,61 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
+        // Asset Management
+        const assets = {
+            images: {
+                background: null,
+                player: null,
+                enemy: null,
+                projectile: null,
+                enemyProjectile: null
+            },
+            loading: {
+                background: false,
+                player: false,
+                enemy: false,
+                projectile: false,
+                enemyProjectile: false
+            },
+            assetPath: 'assets/images/'
+        };
+
+        // Load an image asset
+        function loadImage(assetName, fileName) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    assets.images[assetName] = img;
+                    assets.loading[assetName] = true;
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    console.warn(`Failed to load image: ${fileName}`);
+                    assets.loading[assetName] = true;
+                    resolve(null); // Fallback to shapes if image fails
+                };
+                img.src = assets.assetPath + fileName;
+            });
+        }
+
+        // Initialize all game assets
+        async function initializeAssets() {
+            try {
+                await Promise.all([
+                    loadImage('background', 'background.png'),
+                    loadImage('player', 'player.png'),
+                    loadImage('enemy', 'enemy.png'),
+                    loadImage('projectile', 'projectile.png'),
+                    loadImage('enemyProjectile', 'enemy-projectile.png')
+                ]);
+            } catch (err) {
+                console.log('Asset loading completed with some fallbacks');
+            }
+        }
+
+        // Call on page load
+        window.addEventListener('load', initializeAssets);
+
         // Player
         const player = {
             x: canvas.width / 2,
@@ -1021,12 +1082,17 @@
             }
 
             draw() {
-                // Enemy square
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                if (assets.images.enemy) {
+                    // Draw enemy image
+                    ctx.drawImage(assets.images.enemy, this.x, this.y, this.width, this.height);
+                } else {
+                    // Fallback: Enemy square
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                }
 
                 // Name above enemy
                 ctx.fillStyle = '#000';
@@ -1056,10 +1122,15 @@
             }
 
             draw() {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
-                ctx.fill();
+                if (assets.images.projectile) {
+                    ctx.drawImage(assets.images.projectile, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+                } else {
+                    // Fallback: Red circle
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
 
             isOffScreen() {
@@ -1087,10 +1158,15 @@
             }
 
             draw() {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
-                ctx.fill();
+                if (assets.images.enemyProjectile) {
+                    ctx.drawImage(assets.images.enemyProjectile, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+                } else {
+                    // Fallback: Blue circle
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.width / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
 
             isOffScreen() {
@@ -1147,8 +1223,19 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw background
-            ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (assets.images.background) {
+                // Tile the background image if it's smaller than canvas
+                const bgImg = assets.images.background;
+                for (let x = 0; x < canvas.width; x += bgImg.width) {
+                    for (let y = 0; y < canvas.height; y += bgImg.height) {
+                        ctx.drawImage(bgImg, x, y);
+                    }
+                }
+            } else {
+                // Fallback: Gradient background
+                ctx.fillStyle = 'rgba(135, 206, 235, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
 
             // Apply screen shake
             let shakeX = 0;
@@ -1226,21 +1313,26 @@
         }
 
         function drawPlayer() {
-            // Player square
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            ctx.strokeStyle = '#FFB60D';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(player.x, player.y, player.width, player.height);
+            if (assets.images.player) {
+                // Draw player image centered at player position
+                ctx.drawImage(assets.images.player, player.x, player.y, player.width, player.height);
+            } else {
+                // Fallback: Player square
+                ctx.fillStyle = player.color;
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+                ctx.strokeStyle = '#FFB60D';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(player.x, player.y, player.width, player.height);
 
-            // Simple face
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(player.x + 12, player.y + 12, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(player.x + 28, player.y + 12, 3, 0, Math.PI * 2);
-            ctx.fill();
+                // Simple face
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(player.x + 12, player.y + 12, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(player.x + 28, player.y + 12, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         function fireProjectile(e) {
